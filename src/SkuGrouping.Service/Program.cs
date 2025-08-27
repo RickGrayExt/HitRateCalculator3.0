@@ -1,11 +1,13 @@
 using MassTransit;
 using Contracts;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Hosting;
 using System.Linq;
 using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register MassTransit and the consumer
+// Register MassTransit with the SalesPatternsConsumer
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<SalesPatternsConsumer>();
@@ -18,7 +20,7 @@ builder.Services.AddMassTransit(x =>
 
 var app = builder.Build();
 
-// Simple health check
+// Health endpoint
 app.MapGet("/", () => "SkuGrouping Service running");
 
 app.Run();
@@ -27,20 +29,28 @@ public class SalesPatternsConsumer : IConsumer<SalesPatternsIdentified>
 {
     public async Task Consume(ConsumeContext<SalesPatternsIdentified> context)
     {
-        var patterns = context.Message;
+        var message = context.Message;
 
-        // Group SKU demands by SKU Id and calculate totals
-        var groups = patterns.SkuDemands
+        // Guard: ensure message has SkuDemands
+        if (message.SkuDemands == null || !message.SkuDemands.Any())
+        {
+            Console.WriteLine($"[SkuGrouping] No SKU demands found for Run {message.RunId}");
+            return;
+        }
+
+        // Group SKU demands by SKU Id
+        var groups = message.SkuDemands
             .GroupBy(sku => sku.SkuId)
-            .Select(g => new { SkuId = g.Key, TotalDemand = g.Sum(x => x.Demand) })
+            .Select(g => new SkuGroup(g.Key, g.Sum(x => x.Demand))) // assuming SkuGroup ctor exists
             .ToList();
 
-        Console.WriteLine($"[SkuGrouping] Created {groups.Count} groups for Run {patterns.RunId}");
+        Console.WriteLine($"[SkuGrouping] Created {groups.Count} groups for Run {message.RunId}");
 
-        await context.Publish(new SkuGroupsCreated
-        {
-            RunId = patterns.RunId,
-            Groups = groups.Select(g => g.SkuId).ToList()
-        });
+        // Publish the grouped result (using constructor signature from Contracts)
+        await context.Publish(new SkuGroupsCreated(
+            message.RunId,
+            groups,
+            message.SkuDemands
+        ));
     }
 }
