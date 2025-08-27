@@ -1,0 +1,66 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports: ["5672:5672","15672:15672"]
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    environment:
+      - Rabbit:Host=rabbitmq
+      - ASPNETCORE_URLS=http://+:8080
+    ports: ["8080:8080"]
+    depends_on: [rabbitmq]
+    volumes:
+      - ./data:/data:ro
+
+  sales:
+    build: { context: ., dockerfile: Dockerfile.sales }
+    environment: ["Rabbit:Host=rabbitmq"]
+    depends_on: [rabbitmq]
+
+  sku:
+    build: { context: ., dockerfile: Dockerfile.sku }
+    environment: ["Rabbit:Host=rabbitmq"]
+    depends_on: [rabbitmq]
+
+  shelf:
+    build: { context: ., dockerfile: Dockerfile.shelf }
+    environment: ["Rabbit:Host=rabbitmq"]
+    depends_on: [rabbitmq]
+
+  rack:
+    build: { context: ., dockerfile: Dockerfile.rack }
+    environment: ["Rabbit:Host=rabbitmq"]
+    depends_on: [rabbitmq]
+
+  batch:
+    build: { context: ., dockerfile: Dockerfile.batch }
+    environment: ["Rabbit:Host=rabbitmq"]
+    depends_on: [rabbitmq]
+
+  station:
+    build: { context: ., dockerfile: Dockerfile.station }
+    environment: ["Rabbit:Host=rabbitmq"]
+    depends_on: [rabbitmq]
+
+  eff:
+    build: { context: ., dockerfile: Dockerfile.eff }
+    environment: ["Rabbit:Host=rabbitmq"]
+    depends_on: [rabbitmq]
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    environment: ["ASPNETCORE_URLS=http://+:8080"]
+    ports: ["8000:8080"]
+    depends_on: [orchestrator]
+
+  ui:
+    build:
+      context: ./src/UI
+      dockerfile: Dockerfile
+    ports: ["3000:80"]
+    depends_on: [gateway]
