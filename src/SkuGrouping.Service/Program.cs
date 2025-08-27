@@ -33,7 +33,7 @@ public class SalesPatternsConsumer : IConsumer<SalesPatternsIdentified>
         var message = context.Message;
 
         // Guard: ensure message has SkuDemands
-        if (message.Demand == null || !message.Demand.Any())
+        if (message.Demand == null || !message.TotalUnits.Any())
         {
             Console.WriteLine($"[SkuGrouping] No SKU demands found for Run {message.RunId}");
             return;
