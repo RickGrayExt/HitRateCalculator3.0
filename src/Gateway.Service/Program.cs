@@ -1,6 +1,14 @@
 using Yarp.ReverseProxy;
-var b = WebApplication.CreateBuilder(args);
-b.Services.AddReverseProxy().LoadFromConfig(b.Configuration.GetSection("ReverseProxy"));
-var app = b.Build();
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
+var app = builder.Build();
+
 app.MapReverseProxy();
+
 app.Run();
