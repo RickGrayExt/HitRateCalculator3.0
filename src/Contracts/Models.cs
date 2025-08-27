@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Threading.Tasks;
 namespace Contracts;
 
 public record SalesRecord(DateOnly OrderDate, string OrderId, string CustomerId, string ProductCategory,
