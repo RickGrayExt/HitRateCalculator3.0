@@ -2,6 +2,7 @@ using MassTransit;
 using Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -32,14 +33,14 @@ public class SalesPatternsConsumer : IConsumer<SalesPatternsIdentified>
         var message = context.Message;
 
         // Guard: ensure message has SkuDemands
-        if (message.SkuDemands == null || !message.SkuDemands.Any())
+        if (message.Demand == null || !message.Demand.Any())
         {
             Console.WriteLine($"[SkuGrouping] No SKU demands found for Run {message.RunId}");
             return;
         }
 
         // Group SKU demands by SKU Id
-        var groups = message.SkuDemands
+        var groups = message.Demand
             .GroupBy(sku => sku.SkuId)
             .Select(g => new SkuGroup(g.Key, g.Sum(x => x.Demand))) // assuming SkuGroup ctor exists
             .ToList();
@@ -50,7 +51,7 @@ public class SalesPatternsConsumer : IConsumer<SalesPatternsIdentified>
         await context.Publish(new SkuGroupsCreated(
             message.RunId,
             groups,
-            message.SkuDemands
+            message.Demand
         ));
     }
 }
