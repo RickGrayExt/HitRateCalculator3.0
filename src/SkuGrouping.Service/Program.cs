@@ -1,41 +1,46 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Threading.Tasks;
-using Contracts;
 using MassTransit;
+using Contracts;
+using System.Linq;
+using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Register MassTransit and the consumer
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<SalesPatternsConsumer>();
-    x.UsingRabbitMq((ctx, cfg) =>
+    x.UsingRabbitMq((context, cfg) =>
     {
-        cfg.Host(builder.Configuration["Rabbit:Host"] ?? "rabbitmq", "/", h => { });
-        cfg.ConfigureEndpoints(ctx);
+        cfg.Host("rabbitmq", "/", h => { });
+        cfg.ConfigureEndpoints(context);
     });
 });
 
 var app = builder.Build();
-app.MapGet("/", () => "SkuGrouping OK");
+
+// Simple health check
+app.MapGet("/", () => "SkuGrouping Service running");
+
 app.Run();
 
-class SalesPatternsConsumer : IConsumer<SalesPatternsIdentified>
+public class SalesPatternsConsumer : IConsumer<SalesPatternsIdentified>
 {
-    public async Task Consume(ConsumeContext<SalesPatternsIdentified> ctx)
+    public async Task Consume(ConsumeContext<SalesPatternsIdentified> context)
     {
-        var byCat = ctx.Message.Demand.GroupBy(d => d.Category);
-        var groups = new List<SkuGroup>();
-        foreach (var g in byCat)
+        var patterns = context.Message;
+
+        // Group SKU demands by SKU Id and calculate totals
+        var groups = patterns.SkuDemands
+            .GroupBy(sku => sku.SkuId)
+            .Select(g => new { SkuId = g.Key, TotalDemand = g.Sum(x => x.Demand) })
+            .ToList();
+
+        Console.WriteLine($"[SkuGrouping] Created {groups.Count} groups for Run {patterns.RunId}");
+
+        await context.Publish(new SkuGroupsCreated
         {
-            var list = g.OrderByDescending(x => x.Velocity).ToList();
-            double median = list.Count == 0 ? 0 : list[list.Count/2].Velocity;
-            var fast = list.Where(x => x.Velocity >= median).Select(x => x.SkuId).ToList();
-            var slow = list.Where(x => x.Velocity < median).Select(x => x.SkuId).ToList();
-            if (fast.Count > 0) groups.Add(new SkuGroup($"{g.Key}-FAST", fast));
-            if (slow.Count > 0) groups.Add(new SkuGroup($"{g.Key}-SLOW", slow));
-        }
-        await ctx.Publish(new SkuGroupsCreated(ctx.Message.RunId, groups, ctx.Message.Demand));
+            RunId = patterns.RunId,
+            Groups = groups.Select(g => g.SkuId).ToList()
+        });
     }
 }
