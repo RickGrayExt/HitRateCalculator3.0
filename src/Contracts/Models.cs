@@ -1,0 +1,13 @@
+namespace Contracts;
+public record RunParams(string Mode,int MaxSkusPerRack,int OrdersPerBatch,int LinesPerBatch,int MaxStations,int StationCapacity,int WaveSize,int MaxStationsOpen);
+public record SalesRecord(DateOnly OrderDate,string CustomerId,string ProductCategory,string Product,decimal Sales,int Qty,string Priority,string SkuId);
+public record Sku(string Id,string Name,string Category);
+public record SkuDemand(string SkuId,int TotalUnits,int OrderCount,double Velocity,bool Seasonal);
+public record SkuGroup(string GroupId,List<string> SkuIds);
+public record ShelfLocation(string SkuId,string RackId,string SlotId,int Rank);
+public record Rack(string RackId,List<string> SkuIds);
+public record OrderLine(string OrderId,string SkuId,int Qty);
+public record Batch(string BatchId,string? StationId,string Mode,List<OrderLine> Lines);
+public record Station(string StationId,int Capacity);
+public record StationAssignment(string StationId,List<string> BatchIds);
+public record HitRateResult(string Mode,double HitRate,int TotalItemsPicked,int TotalRackPresentations,Dictionary<string,double> ByRack);
